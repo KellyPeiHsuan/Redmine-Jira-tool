@@ -493,12 +493,12 @@ else:
 
 log_folder_path = os.path.join(base_path, "Log")
 
-config = configparser.ConfigParser()
-config.read(os.path.join(base_path, "config.ini"))
+parameter = configparser.ConfigParser()
+parameter.read(os.path.join(base_path, "Parameter.ini"))
 
-sender_email = config.get("MAIL", "sender")
-password = config.get("MAIL", "password")
-receiver_email = config.get("MAIL", "receiver")
+sender_email = parameter.get("MAIL", "sender")
+password = parameter.get("MAIL", "password")
+receiver_email = parameter.get("MAIL", "receiver")
 receiver_list = [email.strip() for email in receiver_email.split(",")]
 
 def get_latest_log_files(folder_path, n=2):

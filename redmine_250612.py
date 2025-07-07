@@ -14,6 +14,7 @@
 #20250314 Tool_v2.4.6 Aslan添加新格子Solution Category for PQM
 #20250408 Tool_v2.4.7 Aslan添加判斷Redmine Jira哪個連線FAIL機制
 #20250612 Tool_v2.4.7 Aslan添加tool run 完自動寄信功能
+#20250707 Kelly
 from redminelib import Redmine
 import jira
 import sys
@@ -569,11 +570,11 @@ class Work(QThread):
         new_path = os.getcwd()
         config.read(new_path + "\\Parameter.ini")
         project_id = config.get("Filter", "Project")
-        project_id_1 = config.get("Filter", "Project_1")
-        project_id_2 = config.get("Filter", "Project_2")
+        #project_id_1 = config.get("Filter", "Project_1")
+        #project_id_2 = config.get("Filter", "Project_2")
         project_id_filter = config.get("Jira Filter", "Project")
-        project_id_1_filter = config.get("Jira Filter", "Project_1")
-        project_id_2_filter = config.get("Jira Filter", "Project_2")
+        #project_id_1_filter = config.get("Jira Filter", "Project_1")
+        #project_id_2_filter = config.get("Jira Filter", "Project_2")
         jira_web = config.get("Web", "Jira_url")
         jira_verify_str = config.get("Web", "Jira_verify")
         str_to_bool = {'true': True, 'false': False}
@@ -584,8 +585,8 @@ class Work(QThread):
         redmine_password = config.get("Redmine", "Password")
         redmine_web = config.get("Web", "Redmine_url")
         taipei_tz = pytz.timezone('Asia/Taipei')
-        # 各別project對應的篩選語法
-        project_filter_list = [[project_id, project_id_filter], [project_id_1, project_id_1_filter], [project_id_2, project_id_2_filter]]
+        # 各別project對應的篩選語法, only X17 on BIOS Redmine
+        project_filter_list = [[project_id, project_id_filter]]
         try:
             # 登入Jira
             options = {'server': jira_web, 'verify': jira_verify}
@@ -725,20 +726,18 @@ class Work(QThread):
                                         new_id = redmine.issue.create(
                                          project_id = project_filter_list[i][0],  # 替換project的项目 ID
                                          subject = pims_summary, # 標題
-                                         tracker_id = 1,  # 替換Tracker ID : PIMS/BITS (trackers = redmine.tracker.all())
-                                         status_id = 8,  # 替換狀態 ID : Open
+                                         tracker_id = 10,  # 替換Tracker ID : PIMS/BITS (trackers = redmine.tracker.all())
+                                         status_id = 1,  # 替換狀態 ID : New
                                          priority_id = 2,  # 替換優先級 ID : Medium (redmine.enumeration.filter(resource='issue_priorities'))
                                          #assigned_to_id = 7, # assigned : A31_Assigee System
                                          start_date = submitted_date, # start日期
                                          due_date = due_date_14day, # due日期
                                          custom_fields=[
-                                             {'id': 1, 'value': issue.key},
-                                             {'id': 2, 'value': 7}, # A31_Assigee System
-                                             {'id': 5, 'value': pims_issue_severity},
-                                             {'id': 6, 'value': pims_issue_subsystem_value},
-                                             {'id': 10, 'value': pims_platform_found_result},
-                                             {'id': 54, 'value': pims_issue_type_value},
-                                             {'id': 56, 'value': pims_status.name}
+                                             {'id': 122, 'value': issue.key},   #PSR Number
+                                             {'id': 127, 'value': 'Automatic_System'}, # utomatic_System
+                                             {'id': 121, 'value': pims_issue_subsystem_value}, #PQM info
+                                             {'id': 123, 'value': pims_platform_found_result}, 
+                                             {'id': 124, 'value': pims_issue_type_value}, #A31 Category
                                          ])
                                         self.trigger.emit(f"Created Issue ID: {new_id.id}")
                                         #print(f"Created Issue ID: {new_id.id}")
@@ -797,6 +796,9 @@ class Work2(QThread):
         redmine_account = config.get("Redmine", "Account")
         redmine_password = config.get("Redmine", "Password")
         redmine_web = config.get("Web", "Redmine_url")
+        redmine_function = config.get("A31_Task Owner","EC_Member")
+        project_gen = config.get("Plarform","X17_platform")
+
         project_id = []
         if project_id_0:
             project_id.append(project_id_0)
@@ -848,22 +850,59 @@ class Work2(QThread):
            状态代码: 26, 状态名称: ATS (P1/P2/P3)
            状态代码: 27, 状态名称: ATS (P1/P2/P3)-Verify
            状态代码: 28, 状态名称: ATS (P1/P2/P3)-Closed
+            
+           #BIOS Redmine
+            Status ID: 1, Status Name: New
+            Status ID: 2, Status Name: Open
+            Status ID: 3, Status Name: Resolved
+            Status ID: 5, Status Name: Closed
+            Status ID: 6, Status Name: Waive
+            Status ID: 7, Status Name: Pending
+            Status ID: 8, Status Name: Tracking
+            Status ID: 11, Status Name: Waiting
+            Status ID: 12, Status Name: Verify
+            Status ID: 13, Status Name: Tranferred
+            Status ID: 14, Status Name: Transfferred-Closed
+            Status ID: 15, Status Name: ATS/WAD - Can
+            Status ID: 16, Status Name: ATS P1/P2/P3
+            Status ID: 17, Status Name: ATS P4/P5
+            Status ID: 18, Status Name: ATS P1/P2/P3 - Verify
+            Status ID: 19, Status Name: ATS P1/P2/P3 - Closed
+            Status ID: 20, Status Name: Review
+
+
+
             '''
-            statuses = [8,7,9,3,20,23,11,22,25,27,28,28]  #狀態標識符列表
+            statuses = [1,2,11,3,20,12,13,15,18,19]  #狀態標識符列表
             issues = []
             
-            tracker_id = 1  # 欲篩選的 Tracker ID
+            tracker_id = 10  #BIOS Redmine Tracker ID: 10, Tracker Name: BITS/PIMS
+            project_id = 166 #Project ID: 166, Project Name: A31_BC_Projects
+            '''
             # 開始搜尋id
             for i in project_id:
                 for status in statuses:
                     filter_params = {
-                        'project_id': i,
+                        'project_id': project_id,
                         'status_id': status,
                         'tracker_id': tracker_id
                     }
                 
                     filtered_issues = redmine.issue.filter(**filter_params)
                     issues.extend(filtered_issues)
+            '''
+            for status in statuses:
+                    filter_params = {
+                        'project_id': project_id,
+                        'status_id': status,
+                        'tracker_id': tracker_id,
+                        'cf_123': project_gen,      # X17的Platform,
+                        'cf_133': redmine_function  # EC Member   
+                    }
+                
+                    filtered_issues = redmine.issue.filter(**filter_params)
+                    issues.extend(filtered_issues)
+            
             connect = 1
             if len(project_id) >3:
                 self.trigger_wait.emit("Project quantity limit is 3. If there is more than one, separate them with commas.")
@@ -1045,35 +1084,41 @@ class Work2(QThread):
                     re_user_info = ''
                 # 遍歷資料訊息
                 for field in re_issue.custom_fields:
-                    if field.name == "Leader's Comment":
+                    if field.name == "Leader Description":
                         lc = field.value
-                    if field.name == "Disposition Type For PQM":
+                    if field.name == "Disposition Type":
                         dt_pqm = field.value
+                    '''  
+                    #not use 
                     if field.name == "Solution Category for PQM":
                         sc_pqm = field.value
-                    if field.name == "Disposition Details For PQM":
+                    ''' 
+                    if field.name == "Disposition Details":
                         dd_pqm = field.value                                      
-                    if field.name == "Technical Root Cause For PQM":
+                    if field.name == "Technical Root Cause":
                         trc_pqm = field.value
+                    '''
+                    #not use
                     if field.name == "Problem Category for PQM":
                         pc_pqm =  field.value
-                    if field.name == "Subsystem For PQM":
+                    '''    
+                    if field.name == "Component":
                         pqm_sub = field.value
                     if field.name == "PSR Number":
                         pims = field.value
                         pims = ''.join(pims.split())
-                    if field.name == "Transferred Assignee For PQM":
+                    if field.name == "Assignee":
                         transferred_assignee = field.value
                         try:
                             #範例抓取出來:minse_yang
                             transferred_user_info = jira_client.search_users(transferred_assignee)[0].name
                         except:
                             transferred_user_info = ''
-                    if field.name == "ATS/WAD related document/mail":
+                    if field.name == "Attach file to Jira":
                         redmine_document = field.value
-                    if field.name == "PQM Issue Status":
+                    if field.name == "Status":
                         issue_status_pqm = field.value
-                    if field.name == "PQM Issue Severity":
+                    if field.name == "Priority":
                         issue_severity_pqm = field.value
                 self.trigger_pims.emit("Redmine id : " + str(re_issue_id) + " / Status : " + re_status )
                 self.trigger_pims.emit("Redmine Assignee : " + str(re_assigned_to_1) + " / Category : " + str(re_category) )

@@ -14,7 +14,7 @@
 #20250314 Tool_v2.4.6 Aslan添加新格子Solution Category for PQM
 #20250408 Tool_v2.4.7 Aslan添加判斷Redmine Jira哪個連線FAIL機制
 #20250612 Tool_v2.4.7 Aslan添加tool run 完自動寄信功能
-#20250707 Kelly update for BIOS
+#20250707 Kelly update for EC to Use
 from redminelib import Redmine
 import jira
 import sys
@@ -35,6 +35,8 @@ import json
 import pytz
 import urllib3
 import smtplib
+import csv
+from FunctionDetermine import RedmineOwner
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -120,8 +122,8 @@ class MyWidget(QMainWindow):
         self.checkbox2.setChecked(False)
 
         # 根据命令行参数设置复选框状态
-        self.set_checkboxes_based_on_cmd()
-
+        #self.set_checkboxes_based_on_cmd()
+        '''
     def set_checkboxes_based_on_cmd(self):
         # 获取命令行参数并设置复选框状态
         if len(sys.argv) > 1:  # 确保有命令行参数
@@ -146,7 +148,7 @@ class MyWidget(QMainWindow):
                 print("Please enter -l to view the command prompt")
                 self.print_commands()
                 sys.exit(0)
-          
+        '''      
 
 
         # 訊息框
@@ -216,7 +218,7 @@ class MyWidget(QMainWindow):
         self.main_layout.addWidget(self.se_icon_container, 5, 0, 1, 2)
       
         
-        self.execute_action()  # 自动执行 Start 按钮的操作
+        #self.execute_action()  # 自动执行 Start 按钮的操作
 
         
         # log
@@ -464,7 +466,7 @@ class MyWidget(QMainWindow):
     def start_bt_on(self): 
         self.btnStart.setEnabled(True)
         self.error_log()
-        send_email()   
+        #send_email()   
     # 停止按鈕
     def slot_btn_over(self):
         try:
@@ -795,49 +797,26 @@ class Work2(QThread):
         redmine_account = config.get("Redmine", "Account")
         redmine_password = config.get("Redmine", "Password")
         redmine_web = config.get("Web", "Redmine_url")
-        redmine_EC = config.get("A31_Task Owner","EC_Member")
-        redmine_BIOS = config.get("A31_Task Owner","NPI_BIOS_Member")
-        project_gen = config.get("Plarform","X17_platform")
+        ec_member_ids = list(RedmineOwner.EC_Member.values())
+        #bios_member_ids = list(RedmineOwner.BIOS_Member.values())
+        project_gen = config.get("Platform","X17_platform")
 
         try:
+            
             # 登入Jira
             options = {'server': jira_web, 'verify': jira_verify}
             jira_client = jira.JIRA(options=options, basic_auth=(str(jira_account),str(jira_password)))
             #當前帳號名稱
             #jira_account_email = jira_account + '@compal.com'
             account_user_info = jira_client.search_users(jira_email)[0].name
+            self.trigger.emit(f'Log in Jira successfully,current user is {account_user_info}.')
+            
             # 登入redmine
             redmine = Redmine(str(redmine_web), username=str(redmine_account), password=str(redmine_password))
+            self.trigger.emit('Log in Redmine successfully.')
             # project數量限制         
             ''' redmine = Redmine(str(redmine_web), username=str(redmine_account), password=str(redmine_password))
             issue_statuses = redmine.issue_status.all()
-            # 打印状态代码和名称
-            for status in issue_statuses:
-                print(f"状态代码: {status.id}, 状态名称: {status.name}")
-           状态代码: 8, 状态名称: Open
-           状态代码: 7, 状态名称: Assigned
-           状态代码: 9, 状态名称: Waiting
-           状态代码: 3, 状态名称: Resolved
-           状态代码: 20, 状态名称: Review
-           状态代码: 21, 状态名称: Implementing
-           状态代码: 23, 状态名称: Verify
-           状态代码: 10, 状态名称: Completed
-           状态代码: 11, 状态名称: Transfer
-           状态代码: 24, 状态名称: Transfer-Closed
-           状态代码: 22, 状态名称: ATS (P4/P5) / WAD
-           状态代码: 5, 状态名称: Closed
-           状态代码: 12, 状态名称: DDS
-           状态代码: 13, 状态名称: ULV
-           状态代码: 14, 状态名称: IEV
-           状态代码: 15, 状态名称: FC
-           状态代码: 16, 状态名称: BCO
-           状态代码: 17, 状态名称: FV
-           状态代码: 18, 状态名称: RFD
-           状态代码: 19, 状态名称: RTS
-           状态代码: 25, 状态名称: ATS/WAD-Can
-           状态代码: 26, 状态名称: ATS (P1/P2/P3)
-           状态代码: 27, 状态名称: ATS (P1/P2/P3)-Verify
-           状态代码: 28, 状态名称: ATS (P1/P2/P3)-Closed
             
            #BIOS Redmine
             Status ID: 1, Status Name: New
@@ -860,35 +839,40 @@ class Work2(QThread):
             '''
             statuses = [1,2,11,3,20,12,13,15,18,19]  #狀態標識符列表
             issues = []
+            ec_member_ids = list(RedmineOwner.EC_Member.values())
+            ec_member = '|'.join(str(i) for i in ec_member_ids)
             
             tracker_id = 10  #BIOS Redmine Tracker ID: 10, Tracker Name: BITS/PIMS
             project_id = 166 #Project ID: 166, Project Name: A31_BC_Projects
             
-            '''
-            # 開始搜尋id
-            for i in project_id:
-                for status in statuses:
-                    filter_params = {
-                        'project_id': project_id,
-                        'status_id': status,
-                        'tracker_id': tracker_id
-                    }
-                
-                    filtered_issues = redmine.issue.filter(**filter_params)
-                    issues.extend(filtered_issues)
-            '''
             for status in statuses:
-                    filter_params = {
-                        'project_id': project_id,
-                        'status_id': status,
-                        'tracker_id': tracker_id,
-                        'cf_123': project_gen,      # X17的Platform,
-                        'cf_133': redmine_EC,  # EC Member   
-                    }
-                
-                    filtered_issues = redmine.issue.filter(**filter_params)
-                    issues.extend(filtered_issues)
+                filter_params = {
+                    'project_id': project_id,
+                    'status_id': status,
+                    'tracker_id': tracker_id,
+                    'cf_123': project_gen,         # X17的Platform,
+                    'cf_133': ec_member            # EC Member   
+                }
             
+                filtered_issues = redmine.issue.filter(**filter_params)
+                issues.extend(filtered_issues)
+            
+            '''
+            #Check if the issue list is what we needed.
+            #先輸出CSV檔案確認撈出的資料
+            with open('filtered_issues.csv', 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(['ID', 'Subject', 'Status', 'Priority'])  # 欄位名稱
+                for issue in issues:
+                    writer.writerow([
+                        issue.id,
+                        issue.subject,
+                        issue.status.name if hasattr(issue, 'status') else '',
+                        issue.priority.name if hasattr(issue, 'priority') else ''
+                    ])
+            self.trigger.emit("已匯出 filtered_issues.csv，可用 Excel 檢查資料。")
+            '''
+
             connect = 1
             if len(project_id) >3:
                 self.trigger_wait.emit("Project quantity limit is 3. If there is more than one, separate them with commas.")
@@ -898,6 +882,7 @@ class Work2(QThread):
             self.trigger_wait.emit("Please check your network connection or verify that your account credentials are correct.")
             self.trigger_bt_on.emit()
             #print("Please check your network connection or verify that your account credentials are correct.")
+        
         if connect == 1:
             # bar 進度條
             count_pims = 100 / int(len(issues))
@@ -1164,7 +1149,7 @@ class Work2(QThread):
                             while True:
                                 try:
                                     # comment
-                                    if re_status not in ['Open', 'Closed', 'Transferred-Closed', 'ATS (P1/P2/P3)-Closed', 'ATS (P4/P5) / WAD', 'Transferred']:
+                                    if re_status not in ['New', 'Closed', 'Transferred-Closed', 'ATS (P1/P2/P3)-Closed', 'ATS (P4/P5) / WAD', 'Transferred']:
                                         comsun = 0
                                         try:
                                             if lc != "" and '[20xxxxxx EC xxx]' not in lc:

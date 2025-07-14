@@ -14,7 +14,7 @@
 #20250314 Tool_v2.4.6 Aslan添加新格子Solution Category for PQM
 #20250408 Tool_v2.4.7 Aslan添加判斷Redmine Jira哪個連線FAIL機制
 #20250612 Tool_v2.4.7 Aslan添加tool run 完自動寄信功能
-#20250707 Kelly revised code from EC redmine to BIOS redmine
+#20250707 Kelly update for BIOS
 from redminelib import Redmine
 import jira
 import sys
@@ -760,6 +760,7 @@ class Work(QThread):
              
             self.trigger_bt_on.emit()
             self.trigger.emit('Execution completed !')
+            
 # Upload PIMS information of Redmine to Jira
 class Work2(QThread):
     trigger_pims = pyqtSignal(str)
@@ -783,9 +784,7 @@ class Work2(QThread):
         #new_path = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
         new_path = os.getcwd()
         config.read(new_path + "\\Parameter.ini")
-        project_id_0 = config.get("Filter", "Project")
-        project_id_1 = config.get("Filter", "Project_1")
-        project_id_2 = config.get("Filter", "Project_2")
+        #project_id = config.get("Filter", "Project")
         jira_web = config.get("Web", "Jira_url")
         jira_verify_str = config.get("Web", "Jira_verify")
         str_to_bool = {'true': True, 'false': False}
@@ -796,20 +795,10 @@ class Work2(QThread):
         redmine_account = config.get("Redmine", "Account")
         redmine_password = config.get("Redmine", "Password")
         redmine_web = config.get("Web", "Redmine_url")
-        redmine_function = config.get("A31_Task Owner","EC_Member")
+        redmine_EC = config.get("A31_Task Owner","EC_Member")
+        redmine_BIOS = config.get("A31_Task Owner","NPI_BIOS_Member")
         project_gen = config.get("Plarform","X17_platform")
-        project_id = []
-        if project_id_0:
-            project_id.append(project_id_0)
-        if project_id_1:
-            project_id.append(project_id_1)
-        if project_id_2:
-            project_id.append(project_id_2)
-        self.trigger_pims.emit("------------------------------------------------")
-        cleaned_str = str(project_id).replace("[", "").replace("]", "")
-        self.trigger.emit('Check the ' + str(cleaned_str))
-        self.trigger_pims.emit("------------------------------------------------")
-        connect = 0
+
         try:
             # 登入Jira
             options = {'server': jira_web, 'verify': jira_verify}
@@ -868,15 +857,13 @@ class Work2(QThread):
             Status ID: 18, Status Name: ATS P1/P2/P3 - Verify
             Status ID: 19, Status Name: ATS P1/P2/P3 - Closed
             Status ID: 20, Status Name: Review
-
-
-
             '''
             statuses = [1,2,11,3,20,12,13,15,18,19]  #狀態標識符列表
             issues = []
             
             tracker_id = 10  #BIOS Redmine Tracker ID: 10, Tracker Name: BITS/PIMS
             project_id = 166 #Project ID: 166, Project Name: A31_BC_Projects
+            
             '''
             # 開始搜尋id
             for i in project_id:
@@ -896,7 +883,7 @@ class Work2(QThread):
                         'status_id': status,
                         'tracker_id': tracker_id,
                         'cf_123': project_gen,      # X17的Platform,
-                        'cf_133': redmine_function  # EC Member   
+                        'cf_133': redmine_EC,  # EC Member   
                     }
                 
                     filtered_issues = redmine.issue.filter(**filter_params)
@@ -1242,8 +1229,8 @@ class Work2(QThread):
                                         else:
                                             self.trigger_fail.emit("Error message : (Redmine id : " + str(re_issue_id) + " / Status : " + re_status + ");(" + pims + " / Status : " + pims_status.name + ")")
                       
-                                    # Open方法
-                                    elif re_status == 'Open':
+                                    # Assigned方法
+                                    elif re_status == 'Assigned':
                                         #new_path = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
                                         new_path = os.getcwd()
                                         #檢查CSV有沒有id資訊,帶出來
@@ -1343,18 +1330,18 @@ class Work2(QThread):
                                                         redmine.issue.update(re_issue_id, notes='DF2 is not expected!')
                                                         self.trigger_fail.emit("Error message : DF2 is not expected!")
                                                     id_value = option_mapping.get(str(dt_pqm))
-                                                    #sc_value = solution_mapping.get(str(sc_pqm))  #BIOS Redmine doesn't have this column
+                                                    sc_value = solution_mapping.get(str(sc_pqm))
                                                     if isinstance(sc_value, str):
                                                         sc_value = [sc_value] 
                                                     # 先修改成Assign自己
                                                     jira_client.assign_issue(pims, account_user_info)
                                                     if pims_issue.fields.issuetype.name == 'Change Request':
-                                                        #pc_value = problem_mapping.get(str(pc_pqm))  #BIOS Redmine doesn't have this column
+                                                        pc_value = problem_mapping.get(str(pc_pqm))
                                                         jira_client.transition_issue(pims, 61,fields={'customfield_18716': {"id":id_value},
                                                                                                       'customfield_18715': str(dd_pqm),
                                                                                                       'customfield_26700': str(trc_pqm),
-                                                                                                      #'customfield_28480': {"id":pc_value}, #BIOS Redmine doesn't have this column
-                                                                                                      #'customfield_45100': [{"id": value} for value in sc_value] #BIOS Redmine doesn't have this column
+                                                                                                      'customfield_28480': {"id":pc_value},
+                                                                                                      'customfield_45100': [{"id": value} for value in sc_value]
                                                                                                       })
                                                         # 先修改成Assign自己
                                                         jira_client.assign_issue(pims, account_user_info)
@@ -1364,12 +1351,12 @@ class Work2(QThread):
                                                         self.trigger.emit('Change the Disposition type to "' + str(dt_pqm) + '" successfully.')
                                                         self.trigger.emit('Change the Disposition Details to "' + str(dd_pqm) + '" successfully.')
                                                         self.trigger.emit('Change the Technical root cause to "' + str(trc_pqm) + '" successfully.')
-                                                        #self.trigger.emit('Change the Problem Category to "' + str(pc_pqm) + '" successfully.')  
+                                                        self.trigger.emit('Change the Problem Category to "' + str(pc_pqm) + '" successfully.')  
                                                     else:
                                                         jira_client.transition_issue(pims, 61,fields={'customfield_18716': {"id":id_value},
                                                                                                       'customfield_18715': str(dd_pqm),
                                                                                                       'customfield_26700': str(trc_pqm),
-                                                                                                      #'customfield_45100': [{"id": value} for value in sc_value] #BIOS Redmine doesn't have this column
+                                                                                                      'customfield_45100': [{"id": value} for value in sc_value]
                                                                                                       })
                                                         # 先修改成Assign自己
                                                         jira_client.assign_issue(pims, account_user_info)
@@ -1515,17 +1502,17 @@ class Work2(QThread):
                                                     try:
 
                                                         if pims_issue.fields.issuetype.name == 'Change Request':
-                                                            #pc_value = problem_mapping.get(str(pc_pqm)) #BIOS Redmine doesn't have this column
+                                                            pc_value = problem_mapping.get(str(pc_pqm))
                                                             jira_client.transition_issue(pims, 61,fields={'customfield_18716': {"id":id_value},
                                                                                                           'customfield_18715': str(dd_pqm),
                                                                                                           'customfield_26700': str(trc_pqm),
-                                                                                                          #'customfield_28480': {"id":pc_value}, #BIOS Redmine doesn't have this column
+                                                                                                          'customfield_28480': {"id":pc_value},
                                                                                                           })
                                                             self.trigger.emit('Change the status of PIMS to "Review" successfully.')
                                                             self.trigger.emit('Change the Disposition type to "' + str(dt_pqm) + '" successfully.')
                                                             self.trigger.emit('Change the Disposition Details to "' + str(dd_pqm) + '" successfully.')
                                                             self.trigger.emit('Change the Technical root cause to "' + str(trc_pqm) + '" successfully.')
-                                                            #self.trigger.emit('Change the Problem Category to "' + str(pc_pqm) + '" successfully.')  #BIOS Redmine doesn't have this column
+                                                            self.trigger.emit('Change the Problem Category to "' + str(pc_pqm) + '" successfully.')  
                                                             # 轉換完後會讓assign變成Reporter的人,所以要再轉換一次
                                                             jira_client.assign_issue(pims, account_user_info)
                                                             # 狀態修改為Verify

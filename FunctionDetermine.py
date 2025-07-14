@@ -62,23 +62,62 @@ class RedmineOwner:
         "White_Wang" : 2046
     }
     
-    BIOS_Member = [ 
-    #SW3
-    "Bear_Wu", "Justin_Mao","BruceBW_Chen", "devily_chang", "JeffCF_Chen", "Howard_Hung", 
-    "Json_Shih","Jean_Hsu", "Boyce_Chiu", "joseph_tu", "Jason_Lee", "minfon_lee", "Leo_Chou", "Ming_Lin",
-    "Bruce_Wang", "Alex_Shih", "Kate_Tsao", "JosephYT_Shih", "JoeYC_Chen", "Terry_Su", "Fisher_Yu",
-    "BillJW_Liu", "SeanYS_Chang", "MikeHC_Li", "ChrisTY_Lai", "Tim_Shih",
-    "Allen_Sung", "JeffCP_Hsu", "KevinPK_Wang", "LilyCH_Huang", "Nowe_Lue", "Kyle_Kuan",
-    "Henry_Lee", "DarrenYC_Kuo", "Jin_Lin", "Brandon_Chen", "TinaTY_Chang", "Wen_Wu",
-    "Allen_Hu", "Pony_Yang", "Can_Yeh", "Derey_Lin", "Deckard_Chen",
-    "KellyPH_Chen", "Tesni_Chen",
-    #SW1
-    "Joseph_Li", "James_Ting", "Charles_Wang", "Ray_Kao", "Cantor_Chang", "Kenny_Wang",
-    "Rita_Lin", "Jeremy_Luo", "James_Liao", "Louis_Shen", "JoeHH_Chung",
-    "Terry_Huang", "KING_CHEN", "Lynn_Tsai", "KrisCT_Cheng", "Edison_Yan",
-    "AllenCW_Huang", "Henson_Chen", "Ken_Chao", "Andy_Chun", "Harry_Choi",
-    "Tenny_Yan", "Willie_Wang", "Ming_Lan", "TimTC_Chen", "Borg_Tseng",
-    "CharlesYC_Li", "EricJH_Lin", "Gordon_Wang", "Hao_Chang", "Ming_Chen",
-    "AllenHN_Chen", "Jeremy_Li", "Neal_Ni", "Jason_Ke", "Ben_Cheng",
-    "EricCY_Peng", "BruceJH_Lin", "KennyKJ_Zhang", "WilliamTW_Huang", "JerryTY_Wang"
-    ]
+    BIOS_Member = {
+        #SW3  name = Redmine_user_id
+        "Alex_Shih":   1662, 
+        "Allen_Hu":    1739, 
+        "Allen_Sung":  1750, 
+        "Bear_Wu":     181, 
+        "BillJW_Liu":  1729, 
+        "Boyce_Chiu":  1738, 
+        "Brandon_Chen":1736, 
+        "Bruce_Wang"  :1751, 
+        "Can_Yeh":     1755, 
+        "ChrisTY_Lai": 1742, 
+        "DarrenYC_Kuo":1727, 
+        "Deckard_Chen":1722, 
+        "Derey_Lin"   :1728, 
+        "devily_chang":631, 
+        "Henry_Lee":   1743, 
+        "Howard_Hung": 1740, 
+        "Jason_Lee":   1744, 
+        "Jean_Hsu":    1661, 
+        "JeffCF_Chen": 1723, 
+        "jeffcp_hsu":  1206, 
+        "Jin_Lin":     1746, 
+        "JoeHH_Chung": 1163, 
+        "JoeYC_Chen":  1943, 
+        "joseph_tu":   1339, 
+        "JosephYT_Shih":1731, 
+        "Json_Shih":    1748, 
+        "Justin_Mao":   1207, 
+        "Kate_Tsao":    1733, 
+        "kellyph_chen": 1668, 
+        "KevinPK_Wang": 1752, 
+        "Kyle_Kuan":    1741, 
+        "Leo_Chou":     1942, 
+        "LilyCH_Huang": 1726,
+        "MikeHC_Li":    1745, 
+        "minfon_lee":   1568, 
+        "Ming_Lin":     1640, 
+        "Nowe_Lue":     1747, 
+        "Pony_Yang":    1754, 
+        "SeanYS_Chang": 1720, 
+        "tesni_chen":   2094, 
+        "Tim_Shih":     1749, 
+        "TinaTY_Chang": 1721, 
+        "Wen_Wu":       1753, 
+
+
+
+
+
+
+
+
+
+
+
+
+    }
+    

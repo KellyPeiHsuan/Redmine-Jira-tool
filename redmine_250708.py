@@ -1042,6 +1042,7 @@ class Work2(QThread):
                     re_category = re_issue.category.name
                 except:
                     re_category = '-'
+                '''
                 # Assignee
                 try:
                     re_assigned_to = re_issue.assigned_to.name
@@ -1053,12 +1054,17 @@ class Work2(QThread):
                     re_assigned_to = ''
                     re_assigned_to_1 = '-' #用來顯示
                     re_user_info = ''
+                '''    
                 # 遍歷資料訊息
                 for field in re_issue.custom_fields:
                     if field.name == "Leader Description":
                         lc = field.value
                     if field.name == "Disposition Type":
                         dt_pqm = field.value
+                    if field.name == "A31_Task Owner":
+                        re_assigned_to_name = field.value
+                        re_assigned_to = re_assigned_to_name + '@compal.com'
+                        re_user_info = jira_client.search_users(re_assigned_to)[0].name    
                     '''  
                     #not use 
                     if field.name == "Solution Category for PQM":
@@ -1092,7 +1098,7 @@ class Work2(QThread):
                     if field.name == "Priority":
                         issue_severity_pqm = field.value
                 self.trigger_pims.emit("Redmine id : " + str(re_issue_id) + " / Status : " + re_status )
-                self.trigger_pims.emit("Redmine Assignee : " + str(re_assigned_to_1) + " / Category : " + str(re_category) )
+                self.trigger_pims.emit("Redmine Assignee : " + str(re_assigned_to_name) + " / Category : " + str(re_category) )
                 #print("Redmine id : " + str(re_issue_id) + " / Status : " + re_status)
                 try:
                     # 抓取PIMS資訊
@@ -1207,15 +1213,15 @@ class Work2(QThread):
                                                 self.trigger.emit('Update the executive summary as completed.')
                                         except:
                                             pass
-                                    # Open方法
-                                    if re_status == 'Open':
+                                    # New方法
+                                    if re_status == 'New':
                                         if pims_status.name == 'Submitted' or pims_status.name == 'Analyze':
                                             self.trigger.emit("Do nothing!")
                                         else:
                                             self.trigger_fail.emit("Error message : (Redmine id : " + str(re_issue_id) + " / Status : " + re_status + ");(" + pims + " / Status : " + pims_status.name + ")")
                       
-                                    # Assigned方法
-                                    elif re_status == 'Assigned':
+                                    # Open方法
+                                    elif re_status == 'Open':
                                         #new_path = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
                                         new_path = os.getcwd()
                                         #檢查CSV有沒有id資訊,帶出來
@@ -1315,18 +1321,18 @@ class Work2(QThread):
                                                         redmine.issue.update(re_issue_id, notes='DF2 is not expected!')
                                                         self.trigger_fail.emit("Error message : DF2 is not expected!")
                                                     id_value = option_mapping.get(str(dt_pqm))
-                                                    sc_value = solution_mapping.get(str(sc_pqm))
+                                                    #sc_value = solution_mapping.get(str(sc_pqm)) #not use
                                                     if isinstance(sc_value, str):
                                                         sc_value = [sc_value] 
                                                     # 先修改成Assign自己
                                                     jira_client.assign_issue(pims, account_user_info)
                                                     if pims_issue.fields.issuetype.name == 'Change Request':
-                                                        pc_value = problem_mapping.get(str(pc_pqm))
+                                                        #pc_value = problem_mapping.get(str(pc_pqm)) #not use
                                                         jira_client.transition_issue(pims, 61,fields={'customfield_18716': {"id":id_value},
                                                                                                       'customfield_18715': str(dd_pqm),
                                                                                                       'customfield_26700': str(trc_pqm),
-                                                                                                      'customfield_28480': {"id":pc_value},
-                                                                                                      'customfield_45100': [{"id": value} for value in sc_value]
+                                                                                                      #'customfield_28480': {"id":pc_value},
+                                                                                                      #'customfield_45100': [{"id": value} for value in sc_value]
                                                                                                       })
                                                         # 先修改成Assign自己
                                                         jira_client.assign_issue(pims, account_user_info)
@@ -1336,12 +1342,12 @@ class Work2(QThread):
                                                         self.trigger.emit('Change the Disposition type to "' + str(dt_pqm) + '" successfully.')
                                                         self.trigger.emit('Change the Disposition Details to "' + str(dd_pqm) + '" successfully.')
                                                         self.trigger.emit('Change the Technical root cause to "' + str(trc_pqm) + '" successfully.')
-                                                        self.trigger.emit('Change the Problem Category to "' + str(pc_pqm) + '" successfully.')  
+                                                        #self.trigger.emit('Change the Problem Category to "' + str(pc_pqm) + '" successfully.')  #not use
                                                     else:
                                                         jira_client.transition_issue(pims, 61,fields={'customfield_18716': {"id":id_value},
                                                                                                       'customfield_18715': str(dd_pqm),
                                                                                                       'customfield_26700': str(trc_pqm),
-                                                                                                      'customfield_45100': [{"id": value} for value in sc_value]
+                                                                                                      #'customfield_45100': [{"id": value} for value in sc_value] #not use
                                                                                                       })
                                                         # 先修改成Assign自己
                                                         jira_client.assign_issue(pims, account_user_info)
@@ -1447,12 +1453,12 @@ class Work2(QThread):
                                             
                                             elif pims_status.name == 'Closed' or pims_status.name == 'Draft' or pims_status.name == 'cancel':
                                                 if re_status == 'ATS (P1/P2/P3)-Verify':
-                                                    #更改Redmine狀態為ATS (P1/P2/P3)-Closed
-                                                    redmine.issue.update(re_issue_id, status_id = 28, custom_fields=[{'id': 56, 'value': 'Closed'}])
+                                                    #更改Redmine狀態為ATS (P1/P2/P3)-Closed (Status ID: 19, Status Name: ATS P1/P2/P3 - Closed)
+                                                    redmine.issue.update(re_issue_id, status_id = 19, custom_fields=[{'id': 157, 'value': 'Closed'}]) #cf_157=Jira Status
                                                     self.trigger.emit('Due to the Jira status being "' + str( pims_status.name) + '", change the Redmine status to "ATS (P1/P2/P3)-Closed" successfully.')
                                                 else:
-                                                    #更改Redmine狀態為Closed
-                                                    redmine.issue.update(re_issue_id, status_id = 5, custom_fields=[{'id': 56, 'value': 'Closed'}])
+                                                    #更改Redmine狀態為Closed (Status ID: 5, Status Name: Closed)
+                                                    redmine.issue.update(re_issue_id, status_id = 5, custom_fields=[{'id': 157, 'value': 'Closed'}]) #cf_157=Jira Status
                                                     self.trigger.emit('Due to the Jira status being "' + str( pims_status.name) + '", change the Redmine status to "Closed" successfully.')
                                                 #刪除狀態
                                                 df = df.drop(index_of_id_name)
@@ -1463,12 +1469,12 @@ class Work2(QThread):
                                                 #已更新過一次Update, 但狀態不是Verify需要檢查 
                                                 if pims_status.name == 'Analyze':
                                                     if re_status == 'ATS (P1/P2/P3)-Verify':
-                                                        redmine.issue.update(re_issue_id, status_id = 26)
+                                                        redmine.issue.update(re_issue_id, status_id = 16)   #Status ID: 16, Status Name: ATS P1/P2/P3
                                                         redmine.issue.update(re_issue_id, notes='Due to the PIMS status being "Analyze", the status of Redmine ID '+ str(re_issue_id)  +' has been corrected back to "ATS (P1/P2/P3)". ')
                                                         self.trigger.emit('Due to the PIMS status being "Analyze", the status of Redmine ID '+ str(re_issue_id)  +' has been corrected back to "ATS (P1/P2/P3)". ')
                                                     else:
-                                                        redmine.issue.update(re_issue_id, status_id = 7)
-                                                        redmine.issue.update(re_issue_id, notes='Due to the PIMS status being "Analyze", the status of Redmine ID '+ str(re_issue_id)  +' has been corrected back to "Assigned". ')
+                                                        redmine.issue.update(re_issue_id, status_id = 2)    #Status ID: 2, Status Name: Open
+                                                        redmine.issue.update(re_issue_id, notes='Due to the PIMS status being "Analyze", the status of Redmine ID '+ str(re_issue_id)  +' has been corrected back to "Open". ')
                                                         self.trigger.emit('Due to the PIMS status being "Analyze", the status of Redmine ID '+ str(re_issue_id)  +' has been corrected back to "Assigned". ')
                                                 else:
                                                     self.trigger_fail.emit("Error message : The Redmine id : " + str(re_issue_id) + " has been updated once, and the " + pims + " status is reverted to " + pims_status.name + ".")
@@ -1487,17 +1493,17 @@ class Work2(QThread):
                                                     try:
 
                                                         if pims_issue.fields.issuetype.name == 'Change Request':
-                                                            pc_value = problem_mapping.get(str(pc_pqm))
+                                                            #pc_value = problem_mapping.get(str(pc_pqm)) not use
                                                             jira_client.transition_issue(pims, 61,fields={'customfield_18716': {"id":id_value},
                                                                                                           'customfield_18715': str(dd_pqm),
                                                                                                           'customfield_26700': str(trc_pqm),
-                                                                                                          'customfield_28480': {"id":pc_value},
+                                                                                                          #'customfield_28480': {"id":pc_value}, not use
                                                                                                           })
                                                             self.trigger.emit('Change the status of PIMS to "Review" successfully.')
                                                             self.trigger.emit('Change the Disposition type to "' + str(dt_pqm) + '" successfully.')
                                                             self.trigger.emit('Change the Disposition Details to "' + str(dd_pqm) + '" successfully.')
                                                             self.trigger.emit('Change the Technical root cause to "' + str(trc_pqm) + '" successfully.')
-                                                            self.trigger.emit('Change the Problem Category to "' + str(pc_pqm) + '" successfully.')  
+                                                            #self.trigger.emit('Change the Problem Category to "' + str(pc_pqm) + '" successfully.')  
                                                             # 轉換完後會讓assign變成Reporter的人,所以要再轉換一次
                                                             jira_client.assign_issue(pims, account_user_info)
                                                             # 狀態修改為Verify
@@ -1551,7 +1557,7 @@ class Work2(QThread):
                                                     self.trigger_fail.emit("Error message : PIMS cannot locate the original assignee.")
                                             elif pims_status.name == 'Closed' or pims_status.name == 'Draft' or pims_status.name == 'cancel':
                                                 #更改Redmine狀態為Closed
-                                                redmine.issue.update(re_issue_id, status_id = 5, custom_fields=[{'id': 56, 'value': 'Closed'}])
+                                                redmine.issue.update(re_issue_id, status_id = 5, custom_fields=[{'id': 157, 'value': 'Closed'}]) #cf_157=Jira Status
                                                 self.trigger.emit('Due to the Jira status being "' + str( pims_status.name) + '", change the Redmine status to "Closed" successfully.')
                                                 #刪除狀態
                                                 df = pd.read_csv(new_path + '\\marker.csv')
@@ -1652,7 +1658,8 @@ class Work2(QThread):
                                                     redmine.issue.update(re_issue_id, notes='Error message : Subcomponent be Changed/Mismatch')
                                                     self.trigger_fail.emit('Error message : Subcomponent be Changed/Mismatch')
                                             elif pims_status.name == 'Closed' or pims_status.name == 'Draft' or pims_status.name == 'cancel':
-                                                redmine.issue.update(re_issue_id, status_id = 24, custom_fields=[{'id': 56, 'value': 'Closed'}])
+                                                #Status ID: 14, Status Name: Transfferred-Closed
+                                                redmine.issue.update(re_issue_id, status_id = 14, custom_fields=[{'id': 157, 'value': 'Closed'}]) 
                                                 self.trigger.emit('Due to the Jira status being "' + str( pims_status.name) + '", change the Redmine status to "Closed" successfully.')
                                                 #刪除狀態
                                                 df = df.drop(index_of_id_name)
@@ -1844,11 +1851,11 @@ class Work2(QThread):
                                                         pims_issue.update(customfield_28468 = {'id': '120596'})
                                                         self.trigger.emit('Change the discretionary_field2 to "ATS Candidate" successfully.')
                                                     elif discretionary_field2 == 'ATS P1' or discretionary_field2 == 'ATS P2' or discretionary_field2 == 'ATS P3':
-                                                        redmine.issue.update(re_issue_id, status_id = 26)
+                                                        redmine.issue.update(re_issue_id, status_id = 16) #Status ID: 16, Status Name: ATS P1/P2/P3
                                                         redmine.issue.update(re_issue_id, notes='Change the status of Redmine to "ATS (P1/P2/P3)" successfully.')
                                                         self.trigger.emit('Change the status of Redmine to "ATS (P1/P2/P3)" successfully.')
                                                     elif discretionary_field2 == 'ATS P4' or discretionary_field2 == 'ATS P5' or discretionary_field2 == 'EB/WAD':
-                                                        redmine.issue.update(re_issue_id, status_id = 22)
+                                                        redmine.issue.update(re_issue_id, status_id = 17)  #Status ID: 17, Status Name: ATS P4/P5
                                                         redmine.issue.update(re_issue_id, notes='Change the status of Redmine to "ATS (P4/P5) / WAD" successfully.')
                                                         self.trigger.emit('Change the status of Redmine to "ATS (P4/P5) / WAD" successfully.')
                                                     elif discretionary_field2 != 'ATS P1' and discretionary_field2 != 'ATS P2' and discretionary_field2 != 'ATS P3' and discretionary_field2 != 'ATS P4' and discretionary_field2 != 'ATS P5' and discretionary_field2 != 'EB/WAD' and discretionary_field2 != 'ATS Candidate':
@@ -1875,11 +1882,11 @@ class Work2(QThread):
                                                             pims_issue.update(customfield_28468 = {'id': '120596'})
                                                             self.trigger.emit('Change the discretionary_field2 to "ATS Candidate" successfully.')
                                                         elif discretionary_field2 == 'ATS P1' or discretionary_field2 == 'ATS P2' or discretionary_field2 == 'ATS P3':
-                                                            redmine.issue.update(re_issue_id, status_id = 26)
+                                                            redmine.issue.update(re_issue_id, status_id = 16) #Status ID: 16, Status Name: ATS P1/P2/P3
                                                             redmine.issue.update(re_issue_id, notes='Change the status of Redmine to "ATS (P1/P2/P3)" successfully.')
                                                             self.trigger.emit('Change the status of Redmine to "ATS (P1/P2/P3)" successfully.')
                                                         elif discretionary_field2 == 'ATS P4' or discretionary_field2 == 'ATS P5' or discretionary_field2 == 'EB/WAD':
-                                                            redmine.issue.update(re_issue_id, status_id = 22)
+                                                            redmine.issue.update(re_issue_id, status_id = 17) #Status ID: 17, Status Name: ATS P4/P5
                                                             redmine.issue.update(re_issue_id, notes='Change the status of Redmine to "ATS (P4/P5) / WAD" successfully.')
                                                             self.trigger.emit('Change the status of Redmine to "ATS (P4/P5) / WAD" successfully.')
                                                         elif discretionary_field2 != 'ATS P1' and discretionary_field2 != 'ATS P2' and discretionary_field2 != 'ATS P3' and discretionary_field2 != 'ATS P4' and discretionary_field2 != 'ATS P5' and discretionary_field2 != 'EB/WAD' and discretionary_field2 != 'ATS Candidate':
@@ -1887,11 +1894,11 @@ class Work2(QThread):
                                                             self.trigger_fail.emit("Error message : DF2 is not expected!")
                                                 
                                                         if pims_issue.fields.issuetype.name == 'Change Request':
-                                                            pc_value = problem_mapping.get(str(pc_pqm))
+                                                            #pc_value = problem_mapping.get(str(pc_pqm)) not used
                                                             jira_client.transition_issue(pims, 61,fields={'customfield_18716': {"id":id_value},
                                                                                                           'customfield_18715': str(dd_pqm),
                                                                                                           'customfield_26700': str(trc_pqm),
-                                                                                                          'customfield_28480': {"id":pc_value},
+                                                                                                          #'customfield_28480': {"id":pc_value}, not use
                                                                                                           })
                                                             # 轉換完後會讓assign變成Reporter的人,所以要再轉換一次
                                                             jira_client.assign_issue(pims, account_user_info)
@@ -1900,7 +1907,7 @@ class Work2(QThread):
                                                             self.trigger.emit('Change the Disposition type to "' + str(dt_pqm) + '" successfully.')
                                                             self.trigger.emit('Change the Disposition Details to "' + str(dd_pqm) + '" successfully.')
                                                             self.trigger.emit('Change the Technical root cause to "' + str(trc_pqm) + '" successfully.')
-                                                            self.trigger.emit('Change the Problem Category to "' + str(pc_pqm) + '" successfully.')  
+                                                            #self.trigger.emit('Change the Problem Category to "' + str(pc_pqm) + '" successfully.')   not use
                                                         else:
                                                             jira_client.transition_issue(pims, 61,fields={'customfield_18716': {"id":id_value},
                                                                                                           'customfield_18715': str(dd_pqm),
@@ -1938,11 +1945,11 @@ class Work2(QThread):
                                                         pims_issue.update(customfield_28468 = {'id': '120596'})
                                                         self.trigger.emit('Change the discretionary_field2 to "ATS Candidate" successfully.')
                                                     elif discretionary_field2 == 'ATS P1' or discretionary_field2 == 'ATS P2' or discretionary_field2 == 'ATS P3':
-                                                        redmine.issue.update(re_issue_id, status_id = 26)
+                                                        redmine.issue.update(re_issue_id, status_id = 16)
                                                         redmine.issue.update(re_issue_id, notes='Change the status of Redmine to "ATS (P1/P2/P3)" successfully.')
                                                         self.trigger.emit('Change the status of Redmine to "ATS (P1/P2/P3)" successfully.')
                                                     elif discretionary_field2 == 'ATS P4' or discretionary_field2 == 'ATS P5' or discretionary_field2 == 'EB/WAD':
-                                                        redmine.issue.update(re_issue_id, status_id = 22)
+                                                        redmine.issue.update(re_issue_id, status_id = 17)
                                                         redmine.issue.update(re_issue_id, notes='Change the status of Redmine to "ATS (P4/P5) / WAD" successfully.')
                                                         self.trigger.emit('Change the status of Redmine to "ATS (P4/P5) / WAD" successfully.')
                                                     elif discretionary_field2 != 'ATS P1' and discretionary_field2 != 'ATS P2' and discretionary_field2 != 'ATS P3' and discretionary_field2 != 'ATS P4' and discretionary_field2 != 'ATS P5' and discretionary_field2 != 'EB/WAD' and discretionary_field2 != 'ATS Candidate':
@@ -2005,7 +2012,7 @@ class Work2(QThread):
                                                         self.trigger.emit('This file "' + str(redmine_attachment.filename) + '" already exists and will not be uploaded.')                         
                                         elif pims_status.name == 'cancel' or pims_status.name == 'Closed' or pims_status.name == 'Draft':
                                             try:
-                                                redmine.issue.update(re_issue_id, custom_fields=[{'id': 56, 'value': 'Closed'}])
+                                                redmine.issue.update(re_issue_id, custom_fields=[{'id': 56, 'value': 'Closed'}]) #cf_157 = Jira Status
                                                 self.trigger.emit('Due to the Jira status being "' + str( pims_status.name) + '", change the Redmine status to "Closed" successfully.')
                                             except:
                                                 self.trigger_fail.emit("Error message : During the status transition process, check for any issues with mandatory fields.(Disposition Type For PQM, Disposition Details For PQM, Technical Root Cause For PQM, ATS/WAD related document/mail)")
@@ -2072,10 +2079,12 @@ class Work2(QThread):
                                     try:
                                         pims_issue = jira_client.issue(pims)
                                         if issue_status_pqm != pims_issue.fields.status.name:
-                                            redmine.issue.update(re_issue_id, custom_fields=[{'id': 56, 'value': str(pims_issue.fields.status.name)}])
-                                            self.trigger.emit('Change the Redmine PQM Issue Status to "' + str(pims_issue.fields.status.name) +  '" successfully.')
+                                            redmine.issue.update(re_issue_id, custom_fields=[{'id': 157, 'value': str(pims_issue.fields.status.name)}])
+                                            self.trigger.emit('Change the Redmine Jira Status to "' + str(pims_issue.fields.status.name) +  '" successfully.')
                                     except:
                                         pass
+                                    '''
+                                    # Current BIOS Redmine doesn't have this custon field
                                     # Issue Severity
                                     try:
                                         if pims_issue_severity != issue_severity_pqm:
@@ -2084,6 +2093,7 @@ class Work2(QThread):
                                     except:
                                         pass
                                     break
+                                    '''
                                 except:
                                     if update_error == 0:
                                         self.trigger_wait.emit("Connection abnormal, waiting for the network to reconnect.")
@@ -2102,7 +2112,7 @@ class Work2(QThread):
                 self.countChanged.emit(int(round(count_bar,0)))
                 self.trigger_pims.emit("------------------------------------------------")
         self.trigger_bt_on.emit()
-        self.trigger.emit('Execution completed !')
+        self.trigger.emit('EC part execution completed !')
         self.trigger_pims.emit("------------------------------------------------")
         self.trigger_pims.emit("Auto Run completes. The window closes automatically.")
         self.trigger_pims.emit("------------------------------------------------")

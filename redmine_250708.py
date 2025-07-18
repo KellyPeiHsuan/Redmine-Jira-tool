@@ -763,7 +763,7 @@ class Work(QThread):
             self.trigger_bt_on.emit()
             self.trigger.emit('Execution completed !')
             
-# Upload PIMS information of Redmine to Jira
+# Upload EC PIMS information of Redmine to Jira
 class Work2(QThread):
     trigger_pims = pyqtSignal(str)
     trigger = pyqtSignal(str)
@@ -851,7 +851,7 @@ class Work2(QThread):
                     'status_id': status,
                     'tracker_id': tracker_id,
                     'cf_123': project_gen,         # X17的Platform,
-                    'cf_133': ec_member            # EC Member   
+                    'cf_133': 1668           # EC Member   
                 }
             
                 filtered_issues = redmine.issue.filter(**filter_params)
@@ -871,13 +871,9 @@ class Work2(QThread):
                         issue.priority.name if hasattr(issue, 'priority') else ''
                     ])
             self.trigger.emit("已匯出 filtered_issues.csv，可用 Excel 檢查資料。")
+            
             '''
-
-            connect = 1
-            if len(project_id) >3:
-                self.trigger_wait.emit("Project quantity limit is 3. If there is more than one, separate them with commas.")
-                connect = 0
-                self.trigger_bt_on.emit()
+            connect = 1    
         except:                
             self.trigger_wait.emit("Please check your network connection or verify that your account credentials are correct.")
             self.trigger_bt_on.emit()
@@ -1011,6 +1007,7 @@ class Work2(QThread):
             }
             
             for reissue in issues:
+                self.trigger_pims.emit(f"Currently processing Redmine id: {reissue.id}")
                 # 重新整理資訊
                 lc = ''
                 dt_pqm = ''
@@ -1038,11 +1035,12 @@ class Work2(QThread):
                             connection_server+=1
                 # 狀態
                 re_status = re_issue.status.name
+                '''
                 try:
                     re_category = re_issue.category.name
                 except:
                     re_category = '-'
-                '''
+                
                 # Assignee
                 try:
                     re_assigned_to = re_issue.assigned_to.name
@@ -1057,13 +1055,18 @@ class Work2(QThread):
                 '''    
                 # 遍歷資料訊息
                 for field in re_issue.custom_fields:
+                    if field.name == "Feature":
+                        re_category = field.value
                     if field.name == "Leader Description":
                         lc = field.value
                     if field.name == "Disposition Type":
                         dt_pqm = field.value
                     if field.name == "A31_Task Owner":
-                        re_assigned_to_name = field.value
-                        re_assigned_to = re_assigned_to_name + '@compal.com'
+                        user_id = field.value
+                        user_obj = redmine.user.get(user_id)
+                        user_name = user_obj.login  # 例如 'kellyph_chen'
+                        re_assigned_to = user_name + '@compal.com'
+                        #print("re_assigned_to:", re_assigned_to)  # 印出 re_assigned_to
                         re_user_info = jira_client.search_users(re_assigned_to)[0].name    
                     '''  
                     #not use 
@@ -1072,7 +1075,7 @@ class Work2(QThread):
                     ''' 
                     if field.name == "Disposition Details":
                         dd_pqm = field.value                                      
-                    if field.name == "Technical Root Cause":
+                    if field.name == "Tech Root Cause":
                         trc_pqm = field.value
                     '''
                     #not use
@@ -1098,7 +1101,7 @@ class Work2(QThread):
                     if field.name == "Priority":
                         issue_severity_pqm = field.value
                 self.trigger_pims.emit("Redmine id : " + str(re_issue_id) + " / Status : " + re_status )
-                self.trigger_pims.emit("Redmine Assignee : " + str(re_assigned_to_name) + " / Category : " + str(re_category) )
+                self.trigger_pims.emit("Redmine Assignee : " + str(re_assigned_to) + " / Feature : " + str(re_category) )
                 #print("Redmine id : " + str(re_issue_id) + " / Status : " + re_status)
                 try:
                     # 抓取PIMS資訊
@@ -1231,6 +1234,7 @@ class Work2(QThread):
                                             index_of_id_name = int(df.index[df['Redmine_id'] == re_issue_id].values[0])
                                             #刪除狀態
                                             df = df.drop(index_of_id_name)
+                                            print(f"Remove Redmine id {re_issue_id} from marker.csv")
                                             df.to_csv(new_path + '\\marker.csv', index=False)
                                         except:
                                             pass       
@@ -1245,9 +1249,9 @@ class Work2(QThread):
                                                             #先修改成自己在修改Redmine Assignee的人
                                                             jira_client.assign_issue(pims, account_user_info)
                                                         jira_client.assign_issue(pims, re_user_info)
-                                                        #self.trigger.emit('Change the Assignee to "' + str(re_user_info) + '" successfully.')
-                                                    #else:
-                                                        #self.trigger.emit('The Assignee is the same person, do nothing.')
+                                                        self.trigger.emit('Change the Assignee to "' + str(re_user_info) + '" successfully.')
+                                                    else:
+                                                        self.trigger.emit('The Assignee is the same person, do nothing.')
                                                     if pims_issue.fields.customfield_28471.name != transferred_user_info:
                                                         jira_client.transition_issue(pims, 371, fields={'customfield_28471': {'name': re_user_info}})
                                                 except:
@@ -1315,6 +1319,7 @@ class Work2(QThread):
                                             try:
                                                 # 抓取當前PIMS Assignee 人員 (minse_yang)
                                                 assignee_name_now = pims_issue.fields.assignee.name
+                                                self.trigger.emit('Current Jira assignee is"' + str(assignee_name_now) +  '" .')
                                                 try:
                                                     #判斷ATS是否正確
                                                     if re_status == 'ATS (P1/P2/P3)' and (discretionary_field2 != 'ATS P1' and discretionary_field2 != 'ATS P2' and discretionary_field2 != 'ATS P3'):
@@ -1322,10 +1327,11 @@ class Work2(QThread):
                                                         self.trigger_fail.emit("Error message : DF2 is not expected!")
                                                     id_value = option_mapping.get(str(dt_pqm))
                                                     #sc_value = solution_mapping.get(str(sc_pqm)) #not use
-                                                    if isinstance(sc_value, str):
-                                                        sc_value = [sc_value] 
+                                                    #if isinstance(sc_value, str):
+                                                        #sc_value = [sc_value] 
                                                     # 先修改成Assign自己
                                                     jira_client.assign_issue(pims, account_user_info)
+                                                    self.trigger.emit('Change Jira assignee to"' + str(account_user_info) +  '" .')
                                                     if pims_issue.fields.issuetype.name == 'Change Request':
                                                         #pc_value = problem_mapping.get(str(pc_pqm)) #not use
                                                         jira_client.transition_issue(pims, 61,fields={'customfield_18716': {"id":id_value},
@@ -1336,8 +1342,10 @@ class Work2(QThread):
                                                                                                       })
                                                         # 先修改成Assign自己
                                                         jira_client.assign_issue(pims, account_user_info)
+
                                                         # 改回來本人
                                                         jira_client.assign_issue(pims, assignee_name_now)
+                                                        self.trigger.emit('Change Jira assignee back to"' + str(assignee_name_now) +  '" .')
                                                         self.trigger.emit('Change the status of PIMS to "Review" successfully.')
                                                         self.trigger.emit('Change the Disposition type to "' + str(dt_pqm) + '" successfully.')
                                                         self.trigger.emit('Change the Disposition Details to "' + str(dd_pqm) + '" successfully.')
@@ -1353,6 +1361,7 @@ class Work2(QThread):
                                                         jira_client.assign_issue(pims, account_user_info)
                                                         # 改回來本人
                                                         jira_client.assign_issue(pims, assignee_name_now)
+                                                        self.trigger.emit('Change Jira assignee back to"' + str(assignee_name_now) +  '" .')
                                                         self.trigger.emit('Change the status of PIMS to "Review" successfully.')
                                                         self.trigger.emit('Change the Disposition type to "' + str(dt_pqm) + '" successfully.')
                                                         self.trigger.emit('Change the Disposition Details to "' + str(dd_pqm) + '" successfully.')
@@ -1621,7 +1630,7 @@ class Work2(QThread):
                                             self.trigger_fail.emit("Error message : (Redmine id : " + str(re_issue_id) + " / Status : " + re_status + ");(" + pims + " / Status : " + pims_status.name + ")")
                                     
                                     # Transferred
-                                    elif re_status == 'Transferred':
+                                    elif re_status == 'Tranferred':
                                         #檢查CSV有沒有id資訊,帶出來
                                         #new_path = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
                                         new_path = os.getcwd()
@@ -1791,7 +1800,7 @@ class Work2(QThread):
                                             self.trigger_fail.emit("Error message : (Redmine id : " + str(re_issue_id) + " / Status : " + re_status + ");(" + pims + " / Status : " + pims_status.name + ")")
                       
                                     # ATS/WAD-Can方法
-                                    elif re_status == 'ATS/WAD-Can':
+                                    elif re_status == 'ATS/WAD - Can':
                                         #檢查CSV有沒有id資訊,帶出來
                                         #new_path = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
                                         new_path = os.getcwd()
@@ -2075,6 +2084,7 @@ class Work2(QThread):
                                             except:
                                                self.trigger_fail.emit("Error message : PIMS cannot locate the original assignee.")
                                     
+                                    
                                     # PQM Issue Status
                                     try:
                                         pims_issue = jira_client.issue(pims)
@@ -2083,8 +2093,9 @@ class Work2(QThread):
                                             self.trigger.emit('Change the Redmine Jira Status to "' + str(pims_issue.fields.status.name) +  '" successfully.')
                                     except:
                                         pass
+                                    break
                                     '''
-                                    # Current BIOS Redmine doesn't have this custon field
+                                    # Current BIOS Redmine doesn't have this custom field
                                     # Issue Severity
                                     try:
                                         if pims_issue_severity != issue_severity_pqm:
@@ -2092,6 +2103,7 @@ class Work2(QThread):
                                             self.trigger.emit('Change the Redmine PQM Issue Severity to "' + str(pims_issue_severity) +  '" successfully.')
                                     except:
                                         pass
+                                        
                                     break
                                     '''
                                 except:
